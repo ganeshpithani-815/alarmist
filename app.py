@@ -390,9 +390,11 @@ def serve(path):
     return send_from_directory(app.template_folder, "index.html")
 
 # ─── Init ────────────────────────────────────────────────────────────────────
+with app.app_context():
+    db.create_all()
+
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
         log.info("DB ready")
         if DEMO_MODE: log.warning("DEMO MODE — set Twilio env vars for real SMS")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=not IS_PROD)
