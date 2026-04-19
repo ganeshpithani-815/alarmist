@@ -1,46 +1,232 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Alarmist</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #f7f7f7;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    input, select, button {
+      padding: 10px;
+      margin: 6px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      background: #1D9E75;
+      color: white;
+      border-radius: 8px;
+    }
+    button:hover {
+      opacity: 0.95;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+    .row > * {
+      flex: 1;
+    }
+    .item {
+      background: #fafafa;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 8px;
+      border: 1px solid #eee;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background: #111;
+      color: #0f0;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    #appSection { display: none; }
+  </style>
 </head>
 <body>
 
-<h2>Login</h2>
+  <div class="card" id="authSection">
+    <h2>Alarmist Login</h2>
+    <input id="phone" placeholder="Enter phone number" />
+    <button onclick="sendOTP()">Send OTP</button>
 
-<input id="phone" placeholder="Enter phone">
-<button onclick="sendOTP()">Send OTP</button>
+    <input id="otp" placeholder="Enter OTP" />
+    <button onclick="verifyOTP()">Verify OTP</button>
 
-<br><br>
+    <pre id="authMsg"></pre>
+  </div>
 
-<input id="otp" placeholder="Enter OTP">
-<button onclick="verifyOTP()">Verify OTP</button>
+  <div class="card" id="appSection">
+    <h2>Welcome to Alarmist</h2>
+    <div id="userInfo"></div>
+    <button onclick="logout()">Logout</button>
+  </div>
 
-<p id="msg"></p>
+  <div class="card" id="todoSection" style="display:none;">
+    <h3>Todos</h3>
+    <input id="todoText" placeholder="Enter todo text" />
+    <select id="todoPriority">
+      <option value="high">High</option>
+      <option value="med" selected>Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <button onclick="addTodo()">Add Todo</button>
+    <div id="todoList"></div>
+  </div>
 
-<script>
-async function sendOTP() {
-  const phone = document.getElementById("phone").value;
-  const res = await fetch("/api/auth/send-otp", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ phone })
-  });
-  const data = await res.json();
-  document.getElementById("msg").innerText = JSON.stringify(data);
-}
+  <div class="card" id="alarmSection" style="display:none;">
+    <h3>Alarms</h3>
+    <input id="alarmTime" placeholder="HH:MM" />
+    <input id="alarmLabel" placeholder="Alarm label" />
+    <select id="alarmGame">
+      <option value="Whack">Whack</option>
+      <option value="Simon">Simon</option>
+      <option value="Tap">Tap</option>
+    </select>
+    <button onclick="addAlarm()">Add Alarm</button>
+    <div id="alarmList"></div>
+  </div>
 
-async function verifyOTP() {
-  const phone = document.getElementById("phone").value;
-  const code = document.getElementById("otp").value;
-  const res = await fetch("/api/auth/verify-otp", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ phone, code })
-  });
-  const data = await res.json();
-  document.getElementById("msg").innerText = JSON.stringify(data);
-}
-</script>
+  <script>
+    async function api(path, method = "GET", body = null) {
+      const opts = {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin"
+      };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      return await res.json();
+    }
+
+    function showAuthMessage(data) {
+      document.getElementById("authMsg").innerText = JSON.stringify(data, null, 2);
+    }
+
+    async function sendOTP() {
+      const phone = document.getElementById("phone").value;
+      const data = await api("/api/auth/send-otp", "POST", { phone });
+      showAuthMessage(data);
+    }
+
+    async function verifyOTP() {
+      const phone = document.getElementById("phone").value;
+      const code = document.getElementById("otp").value;
+      const data = await api("/api/auth/verify-otp", "POST", { phone, code });
+      showAuthMessage(data);
+
+      if (data.user) {
+        document.getElementById("authSection").style.display = "none";
+        document.getElementById("appSection").style.display = "block";
+        document.getElementById("todoSection").style.display = "block";
+        document.getElementById("alarmSection").style.display = "block";
+        document.getElementById("userInfo").innerText =
+          `Hello ${data.user.name || "User"} (${data.user.phone})`;
+        loadTodos();
+        loadAlarms();
+      }
+    }
+
+    async function logout() {
+      await api("/api/auth/logout", "POST");
+      location.reload();
+    }
+
+    async function loadTodos() {
+      const data = await api("/api/todos");
+      const list = document.getElementById("todoList");
+      list.innerHTML = "";
+      data.forEach(todo => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <b>${todo.text}</b><br>
+          Priority: ${todo.priority}<br>
+          Done: ${todo.done}
+          <div class="row">
+            <button onclick="toggleTodo(${todo.id}, ${!todo.done})">Toggle</button>
+            <button onclick="deleteTodo(${todo.id})">Delete</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    async function addTodo() {
+      const text = document.getElementById("todoText").value;
+      const priority = document.getElementById("todoPriority").value;
+      await api("/api/todos", "POST", { text, priority });
+      document.getElementById("todoText").value = "";
+      loadTodos();
+    }
+
+    async function toggleTodo(id, done) {
+      await api(`/api/todos/${id}`, "PUT", { done });
+      loadTodos();
+    }
+
+    async function deleteTodo(id) {
+      await api(`/api/todos/${id}`, "DELETE");
+      loadTodos();
+    }
+
+    async function loadAlarms() {
+      const data = await api("/api/alarms");
+      const list = document.getElementById("alarmList");
+      list.innerHTML = "";
+      data.forEach(alarm => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <b>${alarm.time}</b> — ${alarm.label}<br>
+          Game: ${alarm.game}<br>
+          Active: ${alarm.on}
+          <div class="row">
+            <button onclick="toggleAlarm(${alarm.id}, ${!alarm.on})">Toggle</button>
+            <button onclick="deleteAlarm(${alarm.id})">Delete</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    async function addAlarm() {
+      const time = document.getElementById("alarmTime").value;
+      const label = document.getElementById("alarmLabel").value;
+      const game = document.getElementById("alarmGame").value;
+      await api("/api/alarms", "POST", { time, label, game });
+      document.getElementById("alarmTime").value = "";
+      document.getElementById("alarmLabel").value = "";
+      loadAlarms();
+    }
+
+    async function toggleAlarm(id, on) {
+      await api(`/api/alarms/${id}`, "PUT", { on });
+      loadAlarms();
+    }
+
+    async function deleteAlarm(id) {
+      await api(`/api/alarms/${id}`, "DELETE");
+      loadAlarms();
+    }
+  </script>
 
 </body>
 </html>
