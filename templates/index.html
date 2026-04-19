@@ -159,7 +159,7 @@
         div.innerHTML = `
           <b>${todo.text}</b><br>
           Priority: ${todo.priority}<br>
-          Done: ${todo.done}
+          Done: ${todo.done ? "✅ Completed" : "⏳ Pending"}
           <div class="row">
             <button onclick="toggleTodo(${todo.id}, ${!todo.done})">Toggle</button>
             <button onclick="deleteTodo(${todo.id})">Delete</button>
