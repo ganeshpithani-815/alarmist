@@ -4,7 +4,43 @@
   <title>Alarmist</title>
 </head>
 <body>
-  <h1>Alarmist App Running ✅</h1>
-  <p>Your backend is working.</p>
+
+<h2>Login</h2>
+
+<input id="phone" placeholder="Enter phone">
+<button onclick="sendOTP()">Send OTP</button>
+
+<br><br>
+
+<input id="otp" placeholder="Enter OTP">
+<button onclick="verifyOTP()">Verify OTP</button>
+
+<p id="msg"></p>
+
+<script>
+async function sendOTP() {
+  const phone = document.getElementById("phone").value;
+  const res = await fetch("/api/auth/send-otp", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ phone })
+  });
+  const data = await res.json();
+  document.getElementById("msg").innerText = JSON.stringify(data);
+}
+
+async function verifyOTP() {
+  const phone = document.getElementById("phone").value;
+  const code = document.getElementById("otp").value;
+  const res = await fetch("/api/auth/verify-otp", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ phone, code })
+  });
+  const data = await res.json();
+  document.getElementById("msg").innerText = JSON.stringify(data);
+}
+</script>
+
 </body>
 </html>
